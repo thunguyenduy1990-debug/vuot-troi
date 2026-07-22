@@ -803,7 +803,7 @@ function profileHTML(){
         <span class="nm">${esc(n.ten)} <small>(${n.ma})</small></span><span class="pt">${n.diem}</span>${n.vuotTroi?"🏆":""}</button>`).join("")}</div></div>${detailTableKho(d.kho)}`;
   }
   if(u.type==="ql"){ body = managerHTML(); }
-  return `<button class="back" data-action="back">← Tra cứu khác</button>${body}${chatBox()}`;
+  return `<button class="back" data-action="back">← Tra cứu khác</button>${body}${u.type==="ql"?"":chatBox()}`;
 }
 
 function managerHTML(){
@@ -811,7 +811,7 @@ function managerHTML(){
   return `<div class="card p" style="border-top-color:${C.gold}">
     <div class="prow">${av(MANAGER.ten,1,46)}<div class="pinfo"><h2>${esc(MANAGER.ten)}</h2><div class="sub">Quản lý Vùng Trung Bộ + Duyên Hải · Mã ${MANAGER.ma}</div></div></div>
     ${statCards([[vt+"/"+NV.length,"NV Vượt Trội 🏆"],[String(TN.length),"Trưởng nhóm"],["12","Kho tỉnh"],[String(Math.round(NV.reduce((s,n)=>s+n.diem,0)/NV.length*10)/10),"Điểm TB NV"]])}
-  </div>${tinhMonthMatrix()}${regionTable(true)}${detailTableAll()}`;
+  </div>${chatBox()}${tinhMonthMatrix()}${regionTable(true)}${detailTableAll()}`;
 }
 
 const avgArr=(a)=>a.reduce((s,x)=>s+x,0)/a.length;
@@ -854,7 +854,28 @@ function vDetailHTML(t,m){
   if(m==="TOT"){ const v=vTotal(t);
     return `<table class="vdet"><thead><tr><th style="text-align:left">TIÊU CHÍ — TỔNG T1–T7</th><th>TỔNG ĐIỂM</th><th>THÁNG ĐẠT</th></tr></thead><tbody>${v.per.map(([k,lb,d,p,nm])=>`<tr><td>${lb}</td><td><b>${d}đ</b></td><td class="${p===nm&&nm>0?"ok":"no"}">${p}/${nm}</td></tr>`).join("")}<tr><td><b>TỔNG CỘNG</b></td><td><b>${v.ds}đ</b></td><td></td></tr></tbody></table>`; }
   const v=vMonth(t,m);
-  return `<table class="vdet"><thead><tr><th style="text-align:left">TIÊU CHÍ — ${m==="T7"?"T7 (tạm 15/07)":m}</th><th>KPI</th><th>KẾT QUẢ</th><th>ĐÁNH GIÁ</th><th>ĐIỂM</th></tr></thead><tbody>${v.rows.map(([k,lb,pt,c])=>c?`<tr><td>${lb}</td><td>${fmtV(c.kpi)}</td><td>${fmtV(c.kq)}</td><td class="${c.ok?"ok":"no"}">${c.ok?"ĐẠT":"CHƯA ĐẠT"}</td><td><b>${c.d}đ</b></td></tr>`:`<tr><td>${lb}</td><td colspan="4" class="muted">— chưa có data</td></tr>`).join("")}<tr><td><b>CỘNG THÁNG</b></td><td></td><td></td><td>${v.n}/7 đạt</td><td><b>${v.ds}đ</b></td></tr></tbody></table>`;
+  return `<table class="vdet"><thead><tr><th style="text-align:left">TIÊU CHÍ — ${m==="T7"?"T7 (tạm 15/07)":m}</th><th>KPI</th><th>KẾT QUẢ</th><th>ĐÁNH GIÁ</th><th>ĐIỂM</th></tr></thead><tbody>${v.rows.map(([k,lb,pt,c])=>c?`<tr><td>${lb}</td><td>${fmtCV(k,m,c.kpi)}</td><td>${fmtCV(k,m,c.kq)}</td><td class="${c.ok?"ok":"no"}">${c.ok?"ĐẠT":"CHƯA ĐẠT"}</td><td><b>${c.d}đ</b></td></tr>`:`<tr><td>${lb}</td><td colspan="4" class="muted">— chưa có data</td></tr>`).join("")}<tr><td><b>CỘNG THÁNG</b></td><td></td><td></td><td>${v.n}/7 đạt</td><td><b>${v.ds}đ</b></td></tr></tbody></table>`;
+}
+// Định dạng giá trị theo tiêu chí — SCDV: 1 RULE DUY NHẤT đơn vị triệu "tr" (yc anh Thu 22/07); T7 SCDV là % dự kiến
+const trFmt=(v)=> v==null?"—":String(Math.round(v/1e5)/10).replace(".",",")+"tr";
+const fmtCV=(k,m,v)=>{ if(v==null) return "—";
+  if(k==="scdv"){ if(m==="T7") return fmtV(v)+"%"; return (typeof v==="number"&&v>=100000)? trFmt(v): fmtV(v); }
+  return fmtV(v); };
+// ===== TOÀN VÙNG 7 TIÊU CHÍ (dòng TỔNG VÙNG bấm được như tỉnh) =====
+function vRegionCell(m,k,pt){
+  if(k==="tho5s") return m==="T7"? {kpi:10,kq:10,ok:true,d:2} : {kpi:null,kq:"Đạt chuẩn",ok:true,d:2,tam:true};
+  if(k==="banDon") return {kpi:BANDON_KPI*12,kq:0,ok:false,d:0};
+  if(m==="T7"){ const s=TN7V[k]; return s? {kpi:s.kpi,kq:s.kq,ok:s.ok,d:s.ok?pt:0} : null; }
+  const r=regionCrit(m,k); if(!r) return null;
+  return {kpi:r.kpi??null,kq:r.kq??null,ok:r.ok,d:r.ok?pt:0,tam:r.tam};
+}
+function vRegionMonth(m){ let n=0,ds=0; const rows=V_CRITS.map(([k,lb,pt])=>{ const c=vRegionCell(m,k,pt); if(c){ if(c.ok)n++; ds+=c.d; } return [k,lb,pt,c]; }); return {n,ds,rows}; }
+function vRegionTotal(){ let ds=0; const per=V_CRITS.map(([k,lb,pt])=>{ let d=0,p=0,nm=0; MONTHS7.forEach(m=>{ const c=vRegionCell(m,k,pt); if(c){nm++; if(c.ok)p++; d+=c.d;} }); ds+=d; return [k,lb,d,p,nm]; }); return {ds,per}; }
+function vDetailHTMLR(m){
+  if(m==="TOT"){ const v=vRegionTotal();
+    return `<table class="vdet"><thead><tr><th style="text-align:left">TOÀN VÙNG — TỔNG T1–T7</th><th>TỔNG ĐIỂM</th><th>THÁNG ĐẠT</th></tr></thead><tbody>${v.per.map(([k,lb,d,p,nm])=>`<tr><td>${lb}</td><td><b>${d}đ</b></td><td class="${p===nm&&nm>0?"ok":"no"}">${p}/${nm}</td></tr>`).join("")}<tr><td><b>TỔNG CỘNG</b></td><td><b>${v.ds}đ</b></td><td></td></tr></tbody></table>`; }
+  const v=vRegionMonth(m);
+  return `<table class="vdet"><thead><tr><th style="text-align:left">TOÀN VÙNG — ${m==="T7"?"T7 (tạm 15/07)":m}</th><th>KPI</th><th>KẾT QUẢ</th><th>ĐÁNH GIÁ</th><th>ĐIỂM</th></tr></thead><tbody>${v.rows.map(([k,lb,pt,c])=>c?`<tr><td>${lb}</td><td>${fmtCV(k,m,c.kpi)}</td><td>${fmtCV(k,m,c.kq)}</td><td class="${c.ok?"ok":"no"}">${c.ok?(c.tam?"ĐẠT (tạm)":"ĐẠT"):"CHƯA ĐẠT"}</td><td><b>${c.d}đ</b></td></tr>`:`<tr><td>${lb}</td><td colspan="4" class="muted">—</td></tr>`).join("")}<tr><td><b>CỘNG THÁNG</b></td><td></td><td></td><td>${v.n}/7 đạt</td><td><b>${v.ds}đ</b></td></tr></tbody></table>`;
 }
 function regionCrit(m,k){
   const ts = TINH_LIST.map(t=>TN.find(x=>x.tinh===t)).filter(Boolean);
@@ -867,10 +888,11 @@ function regionCrit(m,k){
 }
 function regionRow(){
   const CK=Object.keys(CRIT_TN);
-  return `<tr class="mm-tong"><td class="mm-tinh"><b>TỔNG VÙNG</b><br><small>VTB + VDH</small></td><td class="mm-cell"></td>${MONTHS7.map(m=>{
-    const rs=CK.map(k=> m==="T7"? {ok:TN7V[k].ok,kq:TN7V[k].kq,kpi:TN7V[k].kpi,tam:false} : regionCrit(m,k)); const nPass=rs.filter(r=>r.ok).length;
-    const tip=CK.map((k,i)=>{ const r=rs[i]; return r.tam?`${CRIT_TN[k]}: tạm đạt (chờ KPI vùng)`:`${CRIT_TN[k]}: KQ ${fmtKQ(r.kq)} / KPI ${fmtKQ(r.kpi)} — ${r.ok?"đạt":"chưa đạt"}`; }).join(" · ");
-    return `<td class="mm-cell" title="${esc(tip)}"><b>${nPass}/5</b><span class="mm-n">đạt · giữ ô xem số</span></td>`;
+  const on=(m)=>S.expV&&S.expV.tinh==="__VUNG__"&&S.expV.m===m;
+  const tot=vRegionTotal();
+  return `<tr class="mm-tong"><td class="mm-tinh"><b>TỔNG VÙNG</b><br><small>VTB + VDH</small></td><td class="mm-cell vcell c-tot ${on("TOT")?"von":""}" data-action="exp-cell" data-tinh="__VUNG__" data-m="TOT"><b>${tot.ds}đ</b><span class="mm-n">lũy kế · bấm xem</span></td>${MONTHS7.map(m=>{
+    const v=vRegionMonth(m);
+    return `<td class="mm-cell vcell ${on(m)?"von":""}" data-action="exp-cell" data-tinh="__VUNG__" data-m="${m}"><b>${v.n}/7</b><span class="mm-n">${v.ds}đ</span></td>`;
   }).join("")}</tr>`;
 }
 function tinhMonthMatrix(){
@@ -895,7 +917,7 @@ function tinhMonthMatrix(){
   return `<div class="card p"><div class="stitle">KẾT QUẢ 7 TIÊU CHÍ THEO THÁNG — 12 TỈNH</div>
   <div class="mm-legend">7 tiêu chí: ⭐5 Sao (4đ) · ⏰Đúng hẹn (2đ) · 🔧Tay nghề (2đ) · 🎯XLDĐ1L (2đ) · 🧰Thợ Chuẩn 5S (2đ) · 💰SCDV (2đ) · 🧾Bán Đơn (2đ). Ô hiện <b>số tiêu chí đạt / điểm tháng</b> — <b>BẤM Ô</b> để xem chi tiết KPI / Kết quả / Đánh giá / Điểm từng tiêu chí. Cột <b>TỔNG</b>: tổng điểm lũy kế T1–T7 + số tháng đạt từng tiêu chí. Bấm tên tỉnh để mở trang kho. <b>T7*</b>: tạm tính chốt 15/07. <i>Thợ 5S: tạm ĐẠT các tháng; Bán Đơn: KPI 20 đơn/tỉnh/tháng, hệ thống chưa mở tạo đơn → KQ 0, CHƯA ĐẠT.</i></div>
   <div class="mgwrap"><table class="mm"><thead><tr><th class="mm-h-tinh">KHO TỈNH</th><th class="c-tot">TỔNG T1–7</th>${MONTHS7.map(m=>`<th>${m==="T7"?"T7*":m}</th>`).join("")}</tr></thead>
-  <tbody>${regionRow()}${body}</tbody></table></div></div>`;
+  <tbody>${regionRow()}${(S.expV&&S.expV.tinh==="__VUNG__")?`<tr class="exprow"><td colspan="${2+MONTHS7.length}">${vDetailHTMLR(S.expV.m)}</td></tr>`:""}${body}</tbody></table></div></div>`;
 }
 
 function regionTable(inline){
