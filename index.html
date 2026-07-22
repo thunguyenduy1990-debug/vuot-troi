@@ -136,6 +136,8 @@ main{padding:16px 12px 44px}
 .dt:not(.dtv) tr.mh th:nth-child(2){position:sticky;left:44px;z-index:4}
 .dt tr.khsep td:first-child{position:sticky;left:0}
 .mg td.c-name,.mg thead th:first-child{position:sticky;left:0;background:#fff;z-index:2;text-align:left}
+.dt .c-tot{background:#FFF6E0!important;font-weight:800;border-bottom:1px solid #FFD50055}
+.dt thead .c-tot{background:#8a6d00!important;color:#fff}
 </style>
 </head>
 <body>
@@ -167,25 +169,33 @@ function detVal(n, idx, m){
   const d=DET[n.ma]; const sc=SC[n.ma]||{}; const t7=T7X[n.ma];
   if(idx<=2){ if(m==="T7"){ return t7? t7[idx] : (idx===0? null : 0); } const arr=d?d[m]:null; return (arr&&arr[idx]!==undefined)?arr[idx]:null; }
   if(idx===3){ const s=sc[m]; return s? s[0] : null; }
-  return null; // Bán đơn: để trống
+  { const s=sc[m]; return s? s[1] : null; } // Bán đơn: từ jobcard SCDV (đã validate 72/72 ô kho×tháng)
+}
+// TỔNG lũy kế theo kỳ (tự mở rộng khi DMONTHS thêm T8, T9...): tiếp cận = TB chia đều số tháng kỳ; còn lại = tổng
+function detTotal(n, idx){
+  const vs = DMONTHS.map(m=>detVal(n,idx,m));
+  if (vs.every(v=>v==null)) return null;
+  const sum = vs.reduce((s,v)=>s+(v||0),0);
+  return idx===0? sum/DMONTHS.length : sum;
 }
 function detHead(){
-  const grp = DMONTHS.map(m=>`<th colspan="5" class="mstart">Tháng ${m.slice(1)}</th>`).join("");
-  const sub = DMONTHS.map(()=>DCOLS.map((c,i)=>`<th class="${i===0?"mstart":""}">${c[1]}</th>`).join("")).join("");
+  const grp = `<th colspan="5" class="mstart c-tot">TỔNG T1–${DMONTHS[DMONTHS.length-1].slice(1)}</th>` + DMONTHS.map(m=>`<th colspan="5" class="mstart">Tháng ${m.slice(1)}</th>`).join("");
+  const sub = DCOLS.map((c,i)=>`<th class="c-tot ${i===0?"mstart":""}">${i===0?"TB "+c[1]:c[1]}</th>`).join("") + DMONTHS.map(()=>DCOLS.map((c,i)=>`<th class="${i===0?"mstart":""}">${c[1]}</th>`).join("")).join("");
   return `<thead><tr class="mh"><th rowspan="2">Hạng</th><th rowspan="2" class="c-nm">User · Tên</th>${grp}</tr><tr>${sub}</tr></thead>`; }
 function shortNm(t){ const p=String(t||"").trim().split(/\s+/); return p.length<=2?String(t||""):p.slice(-2).join(" "); }
 function detRow(n){
+  const tot=DCOLS.map(([idx])=>`<td class="c-tot ${idx===0?"mstart":""}">${detFmt(idx,detTotal(n,idx))}</td>`).join("");
   const cells=DMONTHS.map(m=>DCOLS.map(([idx])=>`<td class="${idx===0?"mstart":""}">${detFmt(idx,detVal(n,idx,m))}</td>`).join("")).join("");
-  return `<tr><td class="c-rk">${n.xepHang??"—"}</td><td class="c-nm"><small>${n.ma}</small> · ${esc(shortNm(n.ten))}</td>${cells}</tr>`; }
+  return `<tr><td class="c-rk">${n.xepHang??"—"}</td><td class="c-nm"><small>${n.ma}</small> · ${esc(shortNm(n.ten))}</td>${tot}${cells}</tr>`; }
 function detailTableKho(kho){
   const mem=NV.filter(n=>n.kho===kho).sort((a,b)=>(a.xepHang??99)-(b.xepHang??99));
   if(!mem.length) return "";
   const body=mem.map(detRow).join("");
   return `<div class="card p"><div class="stitle">CHI TIẾT TỪNG NHÂN VIÊN — CHỈ SỐ THEO THÁNG (T1–T7)</div>
    ${detLegend()}<div class="dtwrap"><table class="dt">${detHead()}<tbody>${body}</tbody></table></div></div>`; }
-function detLegend(){ return `<div class="mm-legend">Mỗi tháng: <b class="dt-tc">Tiếp cận</b> · <b class="dt-kn">SL khiếu nại</b> · <b class="dt-xl">SL lỗi XLĐ1L</b> · <b class="dt-dt">Doanh thu SCDV</b> (triệu, vd 2,2tr) · <b class="dt-bd">Bán đơn</b> (để trống). Kéo ngang để xem đủ T1–T7. <i>T7 tạm tính đến 14/07.</i></div>`; }
+function detLegend(){ return `<div class="mm-legend">Khối <b>TỔNG</b> (nền vàng, ngay sau tên): Tiếp cận = <b>trung bình</b> chia đều số tháng kỳ (T1–${DMONTHS[DMONTHS.length-1].slice(1)}); Khiếu nại / XLĐ1L / DT SCDV / Bán đơn = <b>tổng cộng</b> — qua tháng mới sẽ tự cộng thêm. Mỗi tháng: <b class="dt-tc">Tiếp cận</b> · <b class="dt-kn">SL khiếu nại</b> · <b class="dt-xl">SL lỗi XLĐ1L</b> · <b class="dt-dt">Doanh thu SCDV</b> (triệu, vd 2,2tr) · <b class="dt-bd">Bán đơn</b>. Kéo ngang để xem đủ. <i>T7 tạm tính đến 14/07.</i></div>`; }
 function detailTableAll(){
-  const cols=2+DMONTHS.length*4; let body="";
+  const cols=2+5+DMONTHS.length*5; let body="";
   ["VTB","VDH"].forEach(v=>{
     body+=`<tr class="khsep"><td colspan="${cols}">${v==="VTB"?"VÙNG TRUNG BỘ":"VÙNG DUYÊN HẢI"}</td></tr>`;
     const tinhs=[...new Set(NV.filter(n=>n.vung===v).map(n=>n.tinh))];
@@ -208,10 +218,10 @@ function detFmt(idx,v){
   return `<span class="${cls}">${v}</span>`;
 }
 function detailTableOne(n){
-  const head=`<thead><tr class="mh"><th class="c-cri">Tiêu chí</th>${DMONTHS.map(m=>`<th>${m}</th>`).join("")}</tr></thead>`;
+  const head=`<thead><tr class="mh"><th class="c-cri">Tiêu chí</th><th class="c-tot">TỔNG T1–${DMONTHS[DMONTHS.length-1].slice(1)}</th>${DMONTHS.map(m=>`<th>${m}</th>`).join("")}</tr></thead>`;
   const body=DET_ROWS.map(([idx,label])=>{
     const cells=DMONTHS.map(m=>`<td>${detFmt(idx,detVal(n,idx,m))}</td>`).join("");
-    return `<tr><td class="c-cri">${label}</td>${cells}</tr>`;
+    return `<tr><td class="c-cri">${label}</td><td class="c-tot">${detFmt(idx,detTotal(n,idx))}</td>${cells}</tr>`;
   }).join("");
   return `<div class="mini-title" style="margin-top:14px">📋 CHI TIẾT CHỈ SỐ THEO THÁNG (T1–T7)</div>
    <div class="dtwrap"><table class="dt dtv">${head}<tbody>${body}</tbody></table></div>
