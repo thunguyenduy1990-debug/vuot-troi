@@ -748,7 +748,8 @@ function chatBox(){
     tn: ["Kho tôi đứng hạng mấy trong vùng?","Tiêu chí nào tôi không đạt, tháng mấy?","Tôi cần bao nhiêu điểm để lên hạng 1?"],
     ql: ["Cho anh kết quả tổng khu vực","Kho nào yếu nhất?","Danh sách ai đạt Vượt Trội?"],
     kho:["Kho này ai đứng đầu?","Bao nhiêu người đạt Vượt Trội?","Ai điểm thấp cần hỗ trợ?"] };
-  const sug = sugMap[S.user.type]||sugMap.kho;
+  const uType = (S.user&&S.user.type)||"ql"; // tab "Toàn vùng" công khai chưa đăng nhập → mặc định vai QL (FIX v17: tránh crash null.type)
+  const sug = sugMap[uType]||sugMap.ql;
   const bubbles = S.msgs.map(m=>`<div class="brow ${m.role}"><div class="bub ${m.role}">${esc(m.content).replace(/\n/g,"<br>")}</div></div>`).join("");
   return `<div class="card chat">
     <div class="chat-h"><span class="dot"></span> HỎI ĐÁP TỨC THÌ ⚡ ${AI_URL? `<a class="ai-link" href="${AI_URL}" target="_blank">🤖 Bản AI</a>`:""}</div>
@@ -759,7 +760,8 @@ function chatBox(){
 
 function ask(q){
   S.msgs.push({role:"user", content:q});
-  const la = localAnswer(q, S.user);
+  const chatUser = S.user || {type:"ql", data:{ten:MANAGER.ten, ma:MANAGER.ma}}; // FIX v17: tab Toàn vùng công khai không có S.user
+  const la = localAnswer(q, chatUser);
   S.msgs.push({role:"assistant", content: la?? ("Dạ, câu này nằm ngoài bộ trả lời tức thì của em 🙏. Anh/chị thử gõ \"hỏi được gì\" để xem danh mục câu hỏi" + (AI_URL? ", hoặc bấm nút 🤖 Bản AI ở góc trên để hỏi tự do trên Claude ạ.":" nhé, hoặc liên hệ trưởng nhóm / anh Thu (25634) ạ.")) });
   render(); const cb=$("#chatb"); if(cb) cb.scrollTop=cb.scrollHeight;
 }
