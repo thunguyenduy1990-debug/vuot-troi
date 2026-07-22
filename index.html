@@ -138,6 +138,17 @@ main{padding:16px 12px 44px}
 .mg td.c-name,.mg thead th:first-child{position:sticky;left:0;background:#fff;z-index:2;text-align:left}
 .dt .c-tot{background:#FFF6E0!important;font-weight:800;border-bottom:1px solid #FFD50055}
 .dt thead .c-tot{background:#8a6d00!important;color:#fff}
+.mm .vcell{cursor:pointer}
+.mm .vcell b{font-size:13px;color:#0B2E63}
+.mm .vcell.von{outline:2px solid #FFD500;outline-offset:-2px}
+.mm td.c-tot{background:#FFF6E0}
+.mm th.c-tot{color:#8a6d00}
+.mm .exprow td{background:#fff!important;padding:8px 6px;border:1px solid #FFD50066;border-radius:10px}
+.vdet{border-collapse:collapse;font-size:11.5px;width:100%;min-width:460px}
+.vdet th{color:#5B6B85;font-size:10px;padding:4px 6px;border-bottom:2px solid #EEF3FA;text-align:center}
+.vdet td{padding:5px 6px;border-bottom:1px solid #EEF3FA;text-align:center}
+.vdet td:first-child{text-align:left;font-weight:700;white-space:nowrap}
+.vdet .ok{color:#00B050;font-weight:800}.vdet .no{color:#E23A3A;font-weight:800}.vdet .muted{color:#c1cad8}
 </style>
 </head>
 <body>
@@ -169,7 +180,7 @@ function detVal(n, idx, m){
   const d=DET[n.ma]; const sc=SC[n.ma]||{}; const t7=T7X[n.ma];
   if(idx<=2){ if(m==="T7"){ return t7? t7[idx] : (idx===0? null : 0); } const arr=d?d[m]:null; return (arr&&arr[idx]!==undefined)?arr[idx]:null; }
   if(idx===3){ const s=sc[m]; return s? s[0] : null; }
-  { const s=sc[m]; return s? s[1] : null; } // Bán đơn: từ jobcard SCDV (đã validate 72/72 ô kho×tháng)
+  return null; // Bán đơn SCDV (bán kèm): HỆ THỐNG CHƯA MỞ TẠO ĐƠN → chưa có số. LƯU Ý: SC[ma][m][1] là SỐ JOBCARD HOÀN TẤT, KHÔNG phải bán đơn — đừng nhầm (đã nhầm 1 lần 22/07).
 }
 // TỔNG lũy kế theo kỳ (tự mở rộng khi DMONTHS thêm T8, T9...): tiếp cận = TB chia đều số tháng kỳ; còn lại = tổng
 function detTotal(n, idx){
@@ -193,7 +204,7 @@ function detailTableKho(kho){
   const body=mem.map(detRow).join("");
   return `<div class="card p"><div class="stitle">CHI TIẾT TỪNG NHÂN VIÊN — CHỈ SỐ THEO THÁNG (T1–T7)</div>
    ${detLegend()}<div class="dtwrap"><table class="dt">${detHead()}<tbody>${body}</tbody></table></div></div>`; }
-function detLegend(){ return `<div class="mm-legend">Khối <b>TỔNG</b> (nền vàng, ngay sau tên): Tiếp cận = <b>trung bình</b> chia đều số tháng kỳ (T1–${DMONTHS[DMONTHS.length-1].slice(1)}); Khiếu nại / XLĐ1L / DT SCDV / Bán đơn = <b>tổng cộng</b> — qua tháng mới sẽ tự cộng thêm. Mỗi tháng: <b class="dt-tc">Tiếp cận</b> · <b class="dt-kn">SL khiếu nại</b> · <b class="dt-xl">SL lỗi XLĐ1L</b> · <b class="dt-dt">Doanh thu SCDV</b> (triệu, vd 2,2tr) · <b class="dt-bd">Bán đơn</b>. Kéo ngang để xem đủ. <i>T7 tạm tính đến 14/07.</i></div>`; }
+function detLegend(){ return `<div class="mm-legend">Khối <b>TỔNG</b> (nền vàng, ngay sau tên): Tiếp cận = <b>trung bình</b> chia đều số tháng kỳ (T1–${DMONTHS[DMONTHS.length-1].slice(1)}); Khiếu nại / XLĐ1L / DT SCDV / Bán đơn = <b>tổng cộng</b> — qua tháng mới sẽ tự cộng thêm. Mỗi tháng: <b class="dt-tc">Tiếp cận</b> · <b class="dt-kn">SL khiếu nại</b> · <b class="dt-xl">SL lỗi XLĐ1L</b> · <b class="dt-dt">Doanh thu SCDV</b> (triệu, vd 2,2tr) · <b class="dt-bd">Bán đơn</b> (hệ thống chưa mở tạo đơn — chưa có số). Kéo ngang để xem đủ. <i>T7 tạm tính đến 14/07.</i></div>`; }
 function detailTableAll(){
   const cols=2+5+DMONTHS.length*5; let body="";
   ["VTB","VDH"].forEach(v=>{
@@ -658,6 +669,18 @@ function extraAnswer(q, user){
       if (kho) return `Dạ, doanh thu SCDV kho ${tinhQ[0]}: ${MONTHS7.map(m=>`${m}: ${money(scKho(kho,m))}`).join(" · ")} ạ.`;
     }
   }
+  // ===== 7 TIÊU CHÍ TỈNH×THÁNG (bảng vùng mới — KPI/KQ/ĐG/Điểm) =====
+  if (tinhQ.length===1 && mAll.length===1 && has("chi tiet","kpi","ket qua","the nao","ra sao","bao nhieu","diem","tieu chi")){
+    const t=TN.find(x=>x.tinh===tinhQ[0]);
+    if (t){ const mn=mAll[0], v=vMonth(t,mn);
+      if (v.hasAny) return `Dạ, ${mn} kho ${tinhQ[0]} — ${v.n}/7 tiêu chí đạt, ${v.ds}đ${mn==="T7"?" (tạm tính 15/07)":""}:\n`+v.rows.map(([k,lb,pt,c])=>`• ${lb}: ${c? `KPI ${c.kpi==null?"—":c.kpi} / KQ ${c.kq==null?"—":c.kq} → ${c.ok?"ĐẠT ✅ +"+c.d+"đ":"CHƯA ĐẠT ❌ 0đ"}`:"— chưa có data"}`).join("\n");
+      return `Dạ, ${mn} kho ${tinhQ[0]} chưa có dữ liệu trong app ạ.`; }
+  }
+  if (tinhQ.length===1 && has("luy ke","tong diem","tong ket","ca ky","7 thang")){
+    const t=TN.find(x=>x.tinh===tinhQ[0]);
+    if (t){ const v=vTotal(t);
+      return `Dạ, TỔNG T1–T7 kho ${tinhQ[0]}: ${v.ds} điểm.\n`+v.per.map(([k,lb,d,p,nm])=>`• ${lb}: ${d}đ — đạt ${p}/${nm} tháng`).join("\n")+`\n(Thợ 5S tạm đạt các tháng; Bán Đơn KPI 20 đơn/tháng, hệ thống chưa mở tạo đơn → chưa đạt.)`; }
+  }
   // ===== 11. ĐỘI NHÓM / TRƯỞNG NHÓM =====
   if (has("truong nhom") && tinhQ.length===1 && has("la ai","ai la","ten gi")){
     const t=TN.find(x=>x.tinh===tinhQ[0]);
@@ -810,6 +833,29 @@ const TN7 = {
  "VDH_BRV":{"5sao":{kq:3.51,kpi:3.52,ok:false},dungHen:{kq:98.8,kpi:98.5,ok:true},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:142,kpi:100,ok:true}}};
 const TN7V = {"5sao":{kq:3.55,kpi:3.52,ok:true},dungHen:{kq:98.9,kpi:98.5,ok:true},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:103,kpi:100,ok:true}};
 const tn7Of = (t)=>{ if(!t||!t.kho) return null; const m=String(t.kho).match(/(VTB|VDH)_[A-Z]{3}/); return m?TN7[m[0]]:null; };
+// ===== ENGINE 7 TIÊU CHÍ TAB VÙNG (22/07, theo chốt anh Thu): KPI/KQ/ĐG/Điểm từng tỉnh×tháng =====
+// Thợ 5S: T1-T7 ĐẠT 2đ (quyết định tạm). Bán Đơn: KPI 20 đơn/tỉnh/tháng, KQ 0 (hệ thống chưa mở tạo đơn) → CHƯA ĐẠT 0đ.
+const V_CRITS=[["5sao","⭐ Phục vụ 5 Sao",4],["dungHen","⏰ Đúng hẹn",2],["tayNghe","🔧 Tay nghề chuẩn (IMEI lặp lại)",2],["xldd","🎯 Xử lý DĐ 1 lần",2],["tho5s","🧰 Thợ Chuẩn 5S",2],["scdv","💰 Sửa chữa khách lẻ",2],["banDon","🧾 Bán Đơn SCDV",2]];
+const BANDON_KPI=20;
+function vCell(t,m,k,pt){
+  const hasM = m==="T7"? !!tn7Of(t) : !!(t&&t.thang&&t.thang[m]);
+  if(k==="tho5s"){ if(!hasM) return null; return m==="T7"? {kpi:10,kq:10,ok:true,d:2} : {kpi:null,kq:"Đạt chuẩn",ok:true,d:2}; }
+  if(k==="banDon"){ if(!hasM) return null; return {kpi:BANDON_KPI,kq:0,ok:false,d:0}; }
+  if(m==="T7"){ const s=tn7Of(t); if(!s||!s[k]) return null; return {kpi:s[k].kpi,kq:s[k].kq,ok:s[k].ok,d:s[k].ok?pt:0}; }
+  const tc=t&&t.thang&&t.thang[m]&&t.thang[m].tc? t.thang[m].tc[k]:null;
+  if(!tc) return null; return {kpi:tc.kpi??null,kq:tc.kq??null,ok:tc.d>0,d:tc.d>0?(tc.d||pt):0};
+}
+function vMonth(t,m){ let n=0,ds=0; const rows=V_CRITS.map(([k,lb,pt])=>{ const c=vCell(t,m,k,pt); if(c){ if(c.ok)n++; ds+=c.d; } return [k,lb,pt,c]; });
+  return {n,ds,rows,hasAny:rows.some(r=>r[3])}; }
+function vTotal(t){ let ds=0; const per=V_CRITS.map(([k,lb,pt])=>{ let d=0,p=0,nm=0; MONTHS7.forEach(m=>{ const c=vCell(t,m,k,pt); if(c){nm++; if(c.ok)p++; d+=c.d;} }); ds+=d; return [k,lb,d,p,nm]; });
+  return {ds,per}; }
+const fmtV=(v)=> v==null?"—":(typeof v==="number"? (v>=1000? Math.round(v).toLocaleString("vi-VN") : String(Math.round(v*100)/100).replace(".",",")) : esc(String(v)));
+function vDetailHTML(t,m){
+  if(m==="TOT"){ const v=vTotal(t);
+    return `<table class="vdet"><thead><tr><th style="text-align:left">TIÊU CHÍ — TỔNG T1–T7</th><th>TỔNG ĐIỂM</th><th>THÁNG ĐẠT</th></tr></thead><tbody>${v.per.map(([k,lb,d,p,nm])=>`<tr><td>${lb}</td><td><b>${d}đ</b></td><td class="${p===nm&&nm>0?"ok":"no"}">${p}/${nm}</td></tr>`).join("")}<tr><td><b>TỔNG CỘNG</b></td><td><b>${v.ds}đ</b></td><td></td></tr></tbody></table>`; }
+  const v=vMonth(t,m);
+  return `<table class="vdet"><thead><tr><th style="text-align:left">TIÊU CHÍ — ${m==="T7"?"T7 (tạm 15/07)":m}</th><th>KPI</th><th>KẾT QUẢ</th><th>ĐÁNH GIÁ</th><th>ĐIỂM</th></tr></thead><tbody>${v.rows.map(([k,lb,pt,c])=>c?`<tr><td>${lb}</td><td>${fmtV(c.kpi)}</td><td>${fmtV(c.kq)}</td><td class="${c.ok?"ok":"no"}">${c.ok?"ĐẠT":"CHƯA ĐẠT"}</td><td><b>${c.d}đ</b></td></tr>`:`<tr><td>${lb}</td><td colspan="4" class="muted">— chưa có data</td></tr>`).join("")}<tr><td><b>CỘNG THÁNG</b></td><td></td><td></td><td>${v.n}/7 đạt</td><td><b>${v.ds}đ</b></td></tr></tbody></table>`;
+}
 function regionCrit(m,k){
   const ts = TINH_LIST.map(t=>TN.find(x=>x.tinh===t)).filter(Boolean);
   const cells = ts.map(t=>(t.thang&&t.thang[m]&&t.thang[m].tc)?t.thang[m].tc[k]:null).filter(x=>x!=null);
@@ -821,10 +867,10 @@ function regionCrit(m,k){
 }
 function regionRow(){
   const CK=Object.keys(CRIT_TN);
-  return `<tr class="mm-tong"><td class="mm-tinh"><b>TỔNG VÙNG</b><br><small>VTB + VDH</small></td>${MONTHS7.map(m=>{
+  return `<tr class="mm-tong"><td class="mm-tinh"><b>TỔNG VÙNG</b><br><small>VTB + VDH</small></td><td class="mm-cell"></td>${MONTHS7.map(m=>{
     const rs=CK.map(k=> m==="T7"? {ok:TN7V[k].ok,kq:TN7V[k].kq,kpi:TN7V[k].kpi,tam:false} : regionCrit(m,k)); const nPass=rs.filter(r=>r.ok).length;
-    const dots=CK.map((k,i)=>{ const r=rs[i]; const tip=r.tam?`${CRIT_TN[k]}: tạm đạt (chờ KPI vùng)`:`${CRIT_TN[k]}: KQ ${fmtKQ(r.kq)} / KPI ${fmtKQ(r.kpi)} — ${r.ok?"đạt":"chưa đạt"}`; return `<span class="dot-x ${r.ok?"dot-p":"dot-f"}" title="${esc(tip)}"></span>`; }).join("");
-    return `<td class="mm-cell"><div class="dots">${dots}</div><span class="mm-n">${nPass}/5</span></td>`;
+    const tip=CK.map((k,i)=>{ const r=rs[i]; return r.tam?`${CRIT_TN[k]}: tạm đạt (chờ KPI vùng)`:`${CRIT_TN[k]}: KQ ${fmtKQ(r.kq)} / KPI ${fmtKQ(r.kpi)} — ${r.ok?"đạt":"chưa đạt"}`; }).join(" · ");
+    return `<td class="mm-cell" title="${esc(tip)}"><b>${nPass}/5</b><span class="mm-n">đạt · giữ ô xem số</span></td>`;
   }).join("")}</tr>`;
 }
 function tinhMonthMatrix(){
@@ -833,25 +879,22 @@ function tinhMonthMatrix(){
     const t = TN.find(x=>x.tinh===tinh);
     return {tinh, vung: (NV.find(n=>n.tinh===tinh)||{}).vung, t};
   }).sort((a,b)=>((b.t?b.t.tongDiem:0)-(a.t?a.t.tongDiem:0)));
-  const dotCell = (t,m)=>{
-    if(m==="T7"){ const d7=tn7Of(t);
-      if(!d7) return `<td class="mm-cell"><div class="dots">${CK.map(()=>`<span class="dot-x dot-none"></span>`).join("")}</div></td>`;
-      const nP=CK.filter(k=>d7[k]&&d7[k].ok).length;
-      const dots7=CK.map(k=>{ const c=d7[k]; const ok=c&&c.ok;
-        return `<span class="dot-x ${ok?"dot-p":"dot-f"}" title="${esc(CRIT_TN[k])} T7 (chốt 15/07): KQ ${c?c.kq:"—"} / KPI ${c?c.kpi:"—"} — ${ok?"đạt":"chưa đạt"}"></span>`; }).join("");
-      return `<td class="mm-cell"><div class="dots">${dots7}</div><span class="mm-n">${nP}/5</span></td>`; }
-    if(!t||!t.thang||!t.thang[m]) return `<td class="mm-cell"><div class="dots">${CK.map(()=>`<span class="dot-x dot-none"></span>`).join("")}</div></td>`;
-    const tc = t.thang[m].tc||{};
-    const nPass = CK.filter(k=>tc[k]&&tc[k].d>0).length;
-    const dots = CK.map(k=>{ const ok = tc[k]&&tc[k].d>0; return `<span class="dot-x ${ok?"dot-p":"dot-f"}" title="${esc(CRIT_TN[k])}: ${ok?"đạt":"chưa đạt"}"></span>`; }).join("");
-    return `<td class="mm-cell"><div class="dots">${dots}</div><span class="mm-n">${nPass}/5</span></td>`;
-  };
-  const body = rows.map((r,i)=>`<tr class="${i%2?"":"alt"}" data-action="open-kho" data-kho="${r.t?r.t.kho:""}" style="cursor:pointer">
-    <td class="mm-tinh"><b>${esc(r.tinh)}</b><br><small>${r.vung||""}</small></td>
-    ${MONTHS7.map(m=>dotCell(r.t,m)).join("")}</tr>`).join("");
-  return `<div class="card p"><div class="stitle">TÌNH TRẠNG 5 TIÊU CHÍ THEO THÁNG — 12 TỈNH</div>
-  <div class="mm-legend">Mỗi ô có 5 chấm = 5 tiêu chí (⭐Phục vụ 5 Sao · ⏰Đúng hẹn · 🔧Tay nghề · 🎯XLDĐ · 💰SCDV). <span class="dot-x dot-p"></span> đạt · <span class="dot-x dot-f"></span> chưa đạt. Bấm 1 tỉnh để xem chi tiết. <b>Dòng TỔNG VÙNG</b>: KQ gộp cả vùng so KPI (5 Sao tính trung bình, SCDV tính tổng); tiêu chí chưa có KPI vùng để đạt tạm — bấm giữ ô xem số. <b>Cột T7</b>: tạm tính theo số chốt 15/07 (File Họp Tháng 7), SCDV theo % dự kiến cuối tháng.</div>
-  <div class="mgwrap"><table class="mm"><thead><tr><th class="mm-h-tinh">KHO TỈNH</th>${MONTHS7.map(m=>`<th>${m==="T7"?"T7*":m}</th>`).join("")}</tr></thead>
+  const vcell=(t,tinh,m)=>{ if(!t) return `<td class="mm-cell"><span class="muted">—</span></td>`;
+    const on = S.expV && S.expV.tinh===tinh && S.expV.m===m;
+    if(m==="TOT"){ const v=vTotal(t); return `<td class="mm-cell vcell c-tot ${on?"von":""}" data-action="exp-cell" data-tinh="${esc(tinh)}" data-m="TOT"><b>${v.ds}đ</b><span class="mm-n">lũy kế · bấm xem</span></td>`; }
+    const s=vMonth(t,m);
+    if(!s.hasAny) return `<td class="mm-cell"><span class="muted">—</span></td>`;
+    return `<td class="mm-cell vcell ${on?"von":""}" data-action="exp-cell" data-tinh="${esc(tinh)}" data-m="${m}"><b>${s.n}/7</b><span class="mm-n">${s.ds}đ</span></td>`; };
+  const body = rows.map((r,i)=>{
+    const tr=`<tr class="${i%2?"":"alt"}">
+    <td class="mm-tinh" data-action="open-kho" data-kho="${r.t?r.t.kho:""}" style="cursor:pointer"><b>${esc(r.tinh)}</b><br><small>${r.vung||""}</small></td>
+    ${vcell(r.t,r.tinh,"TOT")}${MONTHS7.map(m=>vcell(r.t,r.tinh,m)).join("")}</tr>`;
+    const ex=(S.expV&&S.expV.tinh===r.tinh&&r.t)? `<tr class="exprow"><td colspan="${2+MONTHS7.length}">${vDetailHTML(r.t,S.expV.m)}</td></tr>`:"";
+    return tr+ex;
+  }).join("");
+  return `<div class="card p"><div class="stitle">KẾT QUẢ 7 TIÊU CHÍ THEO THÁNG — 12 TỈNH</div>
+  <div class="mm-legend">7 tiêu chí: ⭐5 Sao (4đ) · ⏰Đúng hẹn (2đ) · 🔧Tay nghề (2đ) · 🎯XLDĐ1L (2đ) · 🧰Thợ Chuẩn 5S (2đ) · 💰SCDV (2đ) · 🧾Bán Đơn (2đ). Ô hiện <b>số tiêu chí đạt / điểm tháng</b> — <b>BẤM Ô</b> để xem chi tiết KPI / Kết quả / Đánh giá / Điểm từng tiêu chí. Cột <b>TỔNG</b>: tổng điểm lũy kế T1–T7 + số tháng đạt từng tiêu chí. Bấm tên tỉnh để mở trang kho. <b>T7*</b>: tạm tính chốt 15/07. <i>Thợ 5S: tạm ĐẠT các tháng; Bán Đơn: KPI 20 đơn/tỉnh/tháng, hệ thống chưa mở tạo đơn → KQ 0, CHƯA ĐẠT.</i></div>
+  <div class="mgwrap"><table class="mm"><thead><tr><th class="mm-h-tinh">KHO TỈNH</th><th class="c-tot">TỔNG T1–7</th>${MONTHS7.map(m=>`<th>${m==="T7"?"T7*":m}</th>`).join("")}</tr></thead>
   <tbody>${regionRow()}${body}</tbody></table></div></div>`;
 }
 
@@ -944,6 +987,9 @@ document.addEventListener("click",(e)=>{
   if(a==="open-nv"){ const n=NV.find(x=>x.ma===b.dataset.ma); if(n){S.user={type:"nv",data:n}; S.tab="tra"; S.msgs=[]; render(); window.scrollTo(0,0);} }
   if(a==="open-tn"){ const t=TN.find(x=>x.ma===b.dataset.ma); if(t){S.user={type:"tn",data:t}; S.tab="tra"; S.msgs=[]; render(); window.scrollTo(0,0);} }
   if(a==="open-kho"){ const kh=b.dataset.kho; const m=NV.find(x=>x.kho===kh); if(m){S.user={type:"kho",data:{kho:m.kho,tinh:m.tinh,vung:m.vung}}; S.tab="tra"; S.msgs=[]; render(); window.scrollTo(0,0);} }
+  if(a==="exp-cell"){ const t=b.dataset.tinh, m=b.dataset.m;
+    S.expV = (S.expV && S.expV.tinh===t && S.expV.m===m)? null : {tinh:t, m};
+    const y=window.scrollY; render(); window.scrollTo(0,y); }
   if(a==="ask") ask(b.dataset.q);
   if(a==="send"){ const v=$("#chatinp").value.trim(); if(v){ $("#chatinp").value=""; ask(v);} }
 });
