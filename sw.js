@@ -1,4 +1,4 @@
-const CACHE="vuottroi-v10"; // MỖI LẦN UPDATE LỚN: đổi số v2->v3->... để ép xóa cache cũ
+const CACHE="vuottroi-v12"; // MỖI LẦN UPDATE LỚN: đổi số v2->v3->... để ép xóa cache cũ
 const ASSETS=["./","./index.html","./manifest.json","./icon-192.png","./icon-512.png","./apple-touch-icon.png"];
 
 self.addEventListener("install",e=>{

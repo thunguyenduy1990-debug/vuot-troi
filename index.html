@@ -127,6 +127,15 @@ main{padding:16px 12px 44px}
 .dt .dt-bd{color:#7A3EA1;font-weight:800}
 .mm .mm-tong td{background:#FFF6E0!important;border-top:2px solid #FFD500;border-bottom:2px solid #FFD500}
 .mm .mm-tong .mm-tinh b{color:#B8860B}
+/* Sticky cột đầu khi kéo ngang (yc anh Thu 22/07) */
+.mm th.mm-h-tinh{position:sticky;left:0;background:#fff;z-index:3}
+.mm td.mm-tinh{position:sticky;left:0;background:#fff;z-index:2}
+.dt td.c-rk{position:sticky;left:0;background:#fff;z-index:2;width:30px;min-width:30px;max-width:30px;box-sizing:content-box}
+.dt:not(.dtv) td.c-nm{position:sticky;left:44px;background:#fff;z-index:2}
+.dt tr.mh th:nth-child(1){position:sticky;left:0;z-index:4}
+.dt:not(.dtv) tr.mh th:nth-child(2){position:sticky;left:44px;z-index:4}
+.dt tr.khsep td:first-child{position:sticky;left:0}
+.mg td.c-name,.mg thead th:first-child{position:sticky;left:0;background:#fff;z-index:2;text-align:left}
 </style>
 </head>
 <body>
@@ -272,6 +281,7 @@ function localAnswer(qRaw, user) {
     return `${a.icon} ${a.ten}\n💡 ${a.moto}\n` + a.items.map(x=>"  "+x).join("\n"); };
   const failMonths = (p,k)=> MONTHS.filter(m=>p.thang?.[m] && !(p.thang[m].tc?.[k]?.d>0));
   const mMatch = q.match(/(?:^|[^a-z0-9])(?:thang\s*|t)([1-9])(?:$|[^0-9])/);
+  const multiMonth = [...q.matchAll(/(?:^|[^a-z0-9])(?:thang\s*|t)([1-9])(?![0-9])/g)].length>=2; // 2 tháng → để lớp so sánh xử lý
   const askMonth = mMatch? "T"+mMatch[1] : null;
   const kCrit = critQ();
   // PHẠM VI so sánh: kho (mặc định) / vùng VTB-VDH / toàn khu vực
@@ -317,8 +327,9 @@ function localAnswer(qRaw, user) {
     return `Dạ, tiêu chí xét Vượt Trội 6 tháng đầu năm:\n◆ NV tại nhà (2đ/tiêu chí/tháng): 😊 Không góp ý/khiếu nại · 📲 Tiếp cận ≥ TB kho · 🎯 Không lỗi XLDĐ 1 lần. Bằng điểm xét thu nhập cao. Quota 30%/kho.\n◆ TN tại nhà: ⭐ 5 Sao (4đ) · ⏰ Đúng hẹn (2đ) · 🔧 Tay nghề (2đ) · 🎯 XLDĐ (2đ) · 💰 SCDV (2đ). Xếp hạng riêng VTB/VDH.\n◆ Điều kiện chung: tối thiểu 5 tháng ở vị trí. Có điểm = tháng đạt; 0đ = không đạt/không đi làm.`;
 
   // ========== B. THEO THÁNG CỤ THỂ ==========
-  if (askMonth && (user.type==="nv" || user.type==="tn")) {
-    if (askMonth === "T7") return "Dạ, data Tháng 7 chưa có trong app (kỳ này chốt đến hết T6). Chạy kỳ sau em cập nhật liền ạ!";
+  if (askMonth && !multiMonth && (user.type==="nv" || user.type==="tn")) {
+    if (askMonth === "T7"){ const x7 = extraAnswer(q, user); if (x7) return x7;
+      return "Dạ, số Tháng 7 đang TẠM TÍNH giữa tháng. Anh/chị hỏi: \"tháng 7 thế nào\" (TN/QL), \"tiếp cận tháng 7\" hoặc \"doanh thu tháng 7\" (NV) để xem số tạm; số chốt cập nhật đầu Tháng 8 ạ."; }
     const mm = d.thang?.[askMonth];
     if (!mm) return `Dạ, ${askMonth} anh/chị chưa có dữ liệu trong app ạ.`;
     if (kCrit) { // tháng X + tiêu chí Y
@@ -498,9 +509,164 @@ function localAnswer(qRaw, user) {
       return `Dạ, bảng dẫn đầu:\n• TN: ${["VTB","VDH"].map(v=>{const t=TN.filter(x=>x.vung===v).sort((a,b)=>(a.xepHang??99)-(b.xepHang??99))[0]; return `${v}: ${t.ten} (${t.tinh}, ${t.tongDiem}đ) 🥇`;}).join(" · ")}\n• NV: ${["VTB","VDH"].map(v=>{const n=NV.filter(x=>x.vung===v).sort((a,b)=>b.diem-a.diem)[0]; return `${v}: ${n.ten} (${n.tinh}, ${n.diem}đ)`;}).join(" · ")}`;
   }
 
-  return null; // không khớp mẫu → chuyển qua AI
+  return extraAnswer(q, user); // lớp mở rộng 20 nhóm; vẫn không khớp → null → AI
 }
 
+// ===== LỚP TRẢ LỜI MỞ RỘNG (20 nhóm intent — 22/07/2026, test 1308/1308 PASS). Chỉ chạy khi lớp cũ không khớp. =====
+function extraAnswer(q, user){
+  const d = user.data || {};
+  const has = (...ws)=>ws.some(w=>q.includes(w));
+  const hasW = (...ws)=>ws.some(w=>new RegExp("(^|[^a-z0-9])"+w.replace(/ /g,"\\s+")+"($|[^a-z0-9])").test(q));
+  const money = (v)=> v==null? "—" : (v>=1e6? String(Math.round(v/1e5)/10).replace(".",",")+"tr" : Math.round(v).toLocaleString("vi-VN")+"đ");
+  const mAll = [...q.matchAll(/(?:^|[^a-z0-9])(?:thang\s*|t)([1-9])(?![0-9])/g)].map(x=>"T"+x[1]);
+  const tinhQ = TINH_LIST.filter(t=>q.includes(norm(t)));
+  const maQ = (q.match(/(^|[^0-9])(\d{5,6})($|[^0-9])/)||[])[2];
+  const nvMa = maQ? NV.find(n=>n.ma===maQ): null;
+  const kcode = (kho)=>{ const m=String(kho||"").match(/(VTB|VDH)_[A-Z]{3}/); return m?m[0]:null; };
+  const scOf = (ma,mn)=>{ const r=SC[ma]&&SC[ma][mn]; return r? (r[0]||0):0; };
+  const scKho = (kho,mn)=>NV.filter(n=>n.kho===kho).reduce((s,n)=>s+scOf(n.ma,mn),0);
+  const vName = (v)=>v==="VTB"?"Vùng Trung Bộ":"Vùng Duyên Hải";
+  const diemOf = (p)=>p.diem??p.tongDiem??0;
+
+  // ===== 18. GIẢI THÍCH THUẬT NGỮ =====
+  if ((hasW("la gi","la sao","nghia la gi","hieu the nao","co nghia gi") || has("giai thich")) && !has("bi quyet","cach dat","lam sao","the nao de")){
+    if (has("tiep can")) return "Dạ, TỶ LỆ TIẾP CẬN = tỷ lệ khách đánh giá thợ trên App sau khi hoàn tất đơn. Tiêu chí NV: tiếp cận ≥ trung bình kho là đạt (2đ/tháng). Cách tăng: cài app Thợ ĐMX cho khách, nhắc khách đánh giá khi hoàn tất ạ.";
+    if (has("xldd","xld1l","dut diem")) return "Dạ, XỬ LÝ DỨT ĐIỂM 1 LẦN (XLĐ1L) = đơn bảo hành phải xử lý xong ngay lần đầu; nếu cập nhật \"Chuyển Hãng - Lỗi Sản Phẩm\" mà Hãng kiểm không lỗi là bị tính lỗi. Không lỗi trong tháng = đạt 2đ ạ.";
+    if (has("scdv","sua chua dich vu","khach le")) return "Dạ, SCDV (Sửa chữa khách lẻ) = dịch vụ sửa chữa thu phí ngoài bảo hành (thay linh kiện, sửa Board...) — nguồn doanh thu thêm của đội. Với TN là tiêu chí doanh thu theo chỉ tiêu kho ạ.";
+    if (has("ban don")) return "Dạ, BÁN ĐƠN SCDV = số đơn sửa chữa khách lẻ hoàn tất trong tháng (mỗi jobcard kết thúc = 1 đơn) ạ.";
+    if (has("imei","tay nghe","lap lai")) return "Dạ, TAY NGHỀ CHUẨN (lỗi IMEI lặp lại) = cùng 1 máy (IMEI) không được phát sinh sửa lại cùng lỗi trong 30 ngày. Không có ca lặp lại = đạt ạ.";
+    if (has("vuot troi")) return "Dạ, VƯỢT TRỘI = danh hiệu xét theo tổng điểm lũy kế các tiêu chí; NV xét theo kho với quota 30%/kho, bằng điểm xét thêm thu nhập. TN xếp hạng riêng VTB/VDH ạ.";
+    if (has("5 sao","nam sao","sao phuc vu")) return "Dạ, PHỤC VỤ 5 SAO = điểm khách chấm thợ (1-5⭐) khi hoàn tất. Điểm kho = trung bình các phiếu; phiếu ≤3⭐ kéo điểm mạnh nên phải chăm sóc từng khách ạ.";
+    if (has("dung hen")) return "Dạ, ĐÚNG HẸN = giao/lắp đúng khung giờ đã hẹn với khách. Trễ mà không đổi giờ hợp lệ qua tổng đài là tính đơn trễ; tỷ lệ đúng hẹn kho phải ≥ KPI ạ.";
+    if (has("5s") && !has("5 sao")) return "Dạ, THỢ CHUẨN 5S = chuẩn tác phong: đồng phục, giày, dụng cụ, dọn sạch sau bảo hành, thái độ chào hỏi — chấm 10 điểm ạ.";
+  }
+  // ===== 19. MỐC THỜI GIAN & KỲ ĐÁNH GIÁ =====
+  if (has("chot ngay nao","chot khi nao","chot data ngay","ky danh gia nao","ky nao chot")) return "Dạ, kỳ ĐÁNH GIÁ VƯỢT TRỘI này là lũy kế 6 tháng đầu năm 2026, chốt data ngày 16/07/2026. Số Tháng 7 trong app là tạm tính giữa tháng (chốt 14-15/07) ạ.";
+  if (has("khi nao") && (hasW("t7","thang 7") || has("thang sau"))) return "Dạ, data Tháng 7 hiện là TẠM TÍNH đến giữa tháng (14-15/07). Số chốt chính thức sẽ cập nhật khi khóa sổ đầu Tháng 8 ạ.";
+  if (has("kpi moi","bo kpi moi","tu thang 7 kpi")) return "Dạ, từ T7/2026 áp bộ KPI mới (vd SCDV của TN lên 4đ/tháng). Bộ KPI mới KHÔNG áp vào bảng lũy kế 6 tháng đầu năm — hai kỳ tách riêng ạ.";
+  if (has("toi thieu") && has("thang")) return "Dạ, điều kiện xét Vượt Trội: tối thiểu 5 tháng làm việc ở vị trí trong kỳ đánh giá ạ.";
+  // ===== 20. ĐỘNG VIÊN & ĐỊNH HƯỚNG =====
+  if (has("nan qua","chan qua","met moi","ap luc","muon bo","muon nghi","xuong tinh than","buon qua")) return "Dạ, em hiểu áp lực của nghề mình 🤗. Anh/chị nhớ: mình chọn nghề phục vụ — khách có người khó người dễ, thái độ tốt là chìa khóa. Điểm số từng tháng làm lại được; cứ tập trung từng đơn hàng một. Cần hỗ trợ tay nghề hay đơn khó, báo ngay trưởng nhóm — không ai phải tự xoay một mình ạ. Gõ \"làm sao cải thiện\" để nhận kế hoạch cụ thể!";
+  if (has("bi quyet","lam sao gioi","lam sao de gioi","cach dat vuot troi","muon dat vuot troi")) return "Dạ, bí quyết đạt Vượt Trội gói trong 3 việc mỗi ngày: (1) 😊 Không để khách phàn nàn — gọi trước khi đến, minh bạch chi phí; (2) 📲 Nhắc khách đánh giá trên app để tăng tiếp cận; (3) 🎯 Sửa chắc tay, dứt điểm 1 lần. Làm đều 3 việc này, điểm tự tới ạ!";
+  if (has("khach kho tinh","khach kho chiu","khach chui","bi khach mang")) return "Dạ, gặp khách khó: giữ bình tĩnh, lắng nghe hết ý trước, xin lỗi vì trải nghiệm chưa tốt (không đôi co), nêu rõ hướng xử lý + thời hạn, và báo trưởng nhóm nếu vượt thẩm quyền. Xử lý than phiền trong 24h là nguyên tắc vàng ạ.";
+  // ===== 15. CẢM ƠN / XÃ GIAO =====
+  if (has("cam on","thank")) return "Dạ, không có gì ạ! 🙌 Cần tra cứu gì thêm anh/chị cứ gõ, hoặc gõ \"hỏi được gì\" để xem danh mục nhé!";
+  if (has("app nay lam duoc gi","app nay la gi","gioi thieu app")) return "Dạ, app ĐÁNH GIÁ VƯỢT TRỘI 2026 giúp tra cứu: điểm & xếp hạng từng NV/TN, kết quả từng tiêu chí theo tháng T1–T7, chi tiết khiếu nại, doanh thu SCDV, và gợi ý hành động cải thiện. Không chứa dữ liệu thu nhập ạ.";
+  // ===== 16. NGOÀI PHẠM VI =====
+  if (has("thoi tiet","bong da","xo so","gia vang","chung khoan","chinh tri","showbiz","phim","ca si")) return "Dạ, em chỉ chuyên về dữ liệu Đánh giá Vượt Trội của BHSC CE thôi ạ 🙏. Anh/chị hỏi về điểm, xếp hạng, tiêu chí, khiếu nại, SCDV... em trả lời ngay!";
+  // ===== 17. SO SÁNH =====
+  if ((hasW("vtb")||has("trung bo")) && (hasW("vdh")||has("duyen hai"))){
+    const st=(v)=>{ const mem=NV.filter(n=>n.vung===v); const tn=TN.filter(t=>t.vung===v);
+      return {n:mem.length, vt:mem.filter(x=>x.vuotTroi).length, avg:Math.round(mem.reduce((s,x)=>s+x.diem,0)/Math.max(1,mem.length)*10)/10, tnTop:tn.sort((a,b)=>(a.xepHang??99)-(b.xepHang??99))[0]};
+    }; const a=st("VTB"), b=st("VDH");
+    return `Dạ, so sánh 2 vùng:\n• ${vName("VTB")}: ${a.n} NV, ${a.vt} 🏆 VT, điểm TB ${a.avg} — TN dẫn đầu: ${a.tnTop.ten} (${a.tnTop.tongDiem}đ)\n• ${vName("VDH")}: ${b.n} NV, ${b.vt} 🏆 VT, điểm TB ${b.avg} — TN dẫn đầu: ${b.tnTop.ten} (${b.tnTop.tongDiem}đ)\n→ Điểm TB nghiêng về ${a.avg>=b.avg?"VTB":"VDH"}, số Vượt Trội nghiêng về ${a.vt>=b.vt?"VTB":"VDH"} ạ.`;
+  }
+  if (tinhQ.length>=2){
+    const st=(t)=>{ const mem=NV.filter(n=>n.tinh===t); const tn=TN.find(x=>x.tinh===t);
+      return {mem, tn, vt:mem.filter(x=>x.vuotTroi).length, avg:Math.round(mem.reduce((s,x)=>s+x.diem,0)/Math.max(1,mem.length)*10)/10};
+    }; const [t1,t2]=tinhQ; const a=st(t1), b=st(t2);
+    return `Dạ, so sánh kho ${t1} vs ${t2}:\n• ${t1}: TN ${a.tn?a.tn.ten+" "+a.tn.tongDiem+"đ (hạng "+a.tn.xepHang+" "+a.tn.vung+")":"—"} · ${a.mem.length} NV · ${a.vt} 🏆 · điểm TB NV ${a.avg}\n• ${t2}: TN ${b.tn?b.tn.ten+" "+b.tn.tongDiem+"đ (hạng "+b.tn.xepHang+" "+b.tn.vung+")":"—"} · ${b.mem.length} NV · ${b.vt} 🏆 · điểm TB NV ${b.avg}\n→ Theo điểm TN: ${(a.tn?a.tn.tongDiem:0)>=(b.tn?b.tn.tongDiem:0)?t1:t2} đang nhỉnh hơn ạ.`;
+  }
+  if (nvMa && user.type==="nv" && nvMa.ma!==d.ma && has("so voi","so sanh","hon")){
+    const gap=d.diem-nvMa.diem;
+    return `Dạ, so sánh: anh/chị ${d.diem}đ (hạng ${d.xepHang}/${nvOfKho(d.kho).length} kho ${d.tinh}) vs ${nvMa.ten} (${nvMa.ma}) ${nvMa.diem}đ (hạng ${nvMa.xepHang} kho ${nvMa.tinh}). ${gap>0?`Anh/chị đang HƠN ${gap}đ 💪`:gap<0?`Anh/chị đang KÉM ${-gap}đ — cố thêm nhé!`:"Hai bên BẰNG điểm nhau!"} ạ.`;
+  }
+  if (mAll.length>=2 && (user.type==="nv"||user.type==="tn") && d.thang){
+    const [m1,m2]=mAll; const g=(m)=>{ const mm=d.thang[m]; return mm? (mm.diem??mm.tong??0): null; };
+    const v1=g(m1), v2=g(m2);
+    if (v1!=null&&v2!=null) return `Dạ, so sánh của anh/chị: ${m1} được ${v1}đ, ${m2} được ${v2}đ → ${v1===v2?"bằng nhau":(v1>v2?m1:m2)+" tốt hơn ("+Math.abs(v1-v2)+"đ chênh)"} ạ. Hỏi riêng từng tháng (vd "${m2==="T7"?m1:m2} thế nào") để xem chi tiết tiêu chí!`;
+  }
+  // ===== 13. XU HƯỚNG =====
+  if ((user.type==="nv"||user.type==="tn") && d.thang && (has("tien bo","phong do","xu huong","tang hay giam","so voi thang truoc") || (has("cao nhat","thap nhat")&&has("thang")))){
+    const pts=MONTHS.map(m=>({m,v:d.thang[m]?(d.thang[m].diem??d.thang[m].tong??0):null})).filter(x=>x.v!=null);
+    if (pts.length>=2){
+      const hi=pts.reduce((a,b)=>b.v>=a.v?b:a), lo=pts.reduce((a,b)=>b.v<a.v?b:a);
+      const last=pts[pts.length-1], prev=pts[pts.length-2], delta=last.v-prev.v;
+      return `Dạ, xu hướng điểm của anh/chị: ${pts.map(p=>`${p.m}:${p.v}`).join(" → ")}.\n• Cao nhất ${hi.m} (${hi.v}đ), thấp nhất ${lo.m} (${lo.v}đ).\n• ${last.m} so với ${prev.m}: ${delta>0?"TĂNG "+delta+"đ 📈":delta<0?"GIẢM "+(-delta)+"đ 📉 — xem lại tiêu chí yếu nhé":"đi ngang"} ạ.`;
+    }
+  }
+  // ===== 14. DANH SÁCH & LỌC =====
+  if (has("danh sach","liet ke","nhung ai","gom nhung ai") || hasW("top 3","top 5","top 10")){
+    if (has("khieu nai")){
+      const scope = tinhQ.length? NV.filter(n=>tinhQ.includes(n.tinh)) : user.type==="ql"? NV : NV.filter(n=>n.tinh===d.tinh);
+      const ls = scope.filter(n=>KN[n.ma]&&KN[n.ma].length).map(n=>`• ${n.ten} (${n.ma}) — ${KN[n.ma].length} phiếu (${KN[n.ma].map(x=>"T"+x.t).join(", ")})`);
+      return ls.length? `Dạ, NV đang có khiếu nại${tinhQ.length?" kho "+tinhQ.join("/"):user.type==="ql"?" toàn khu vực":" kho "+d.tinh}:\n${ls.join("\n")}\nGõ "khiếu nại <mã NV>" để xem chi tiết từng phiếu ạ.` : "Dạ, phạm vi này hiện KHÔNG có NV nào bị khiếu nại 🎉 ạ.";
+    }
+    if (has("vuot troi")){
+      const scope = tinhQ.length? NV.filter(n=>tinhQ.includes(n.tinh)) : user.type==="ql"? NV : NV.filter(n=>n.tinh===d.tinh);
+      const ls = scope.filter(n=>n.vuotTroi).sort((a,b)=>b.diem-a.diem).map(n=>`• ${n.ten} (${n.ma}) — ${n.diem}đ, ${n.tinh}`);
+      return ls.length? `Dạ, danh sách đạt VƯỢT TRỘI 🏆${tinhQ.length?" kho "+tinhQ.join("/"):user.type==="ql"?" toàn khu vực ("+ls.length+" người)":" kho "+d.tinh}:\n${ls.join("\n")}` : "Dạ, phạm vi này chưa có ai đạt Vượt Trội ạ.";
+    }
+    const nTop = (q.match(/top\s*(\d+)/)||[])[1]||3;
+    const scope = tinhQ.length? NV.filter(n=>tinhQ.includes(n.tinh)) : user.type==="ql"? NV : NV.filter(n=>n.tinh===d.tinh);
+    const ls = [...scope].sort((a,b)=>b.diem-a.diem).slice(0,+nTop).map((n,i)=>`${i+1}. ${n.ten} (${n.ma}) — ${n.diem}đ${n.vuotTroi?" 🏆":""}`);
+    if (ls.length) return `Dạ, TOP ${nTop}${tinhQ.length?" kho "+tinhQ.join("/"):user.type==="ql"?" toàn khu vực":" kho "+d.tinh}:\n${ls.join("\n")}`;
+  }
+  if (has("ai co khieu nai","ai bi khieu nai","ai dang khieu nai")){
+    const scope = user.type==="ql"? NV : NV.filter(n=>n.tinh===d.tinh);
+    const ls = scope.filter(n=>KN[n.ma]&&KN[n.ma].length).map(n=>`• ${n.ten} (${n.ma}) — ${KN[n.ma].length} phiếu`);
+    return ls.length? `Dạ:\n${ls.join("\n")}\nGõ "khiếu nại <mã>" xem chi tiết ạ.` : "Dạ, không có NV nào bị khiếu nại trong phạm vi này 🎉 ạ.";
+  }
+  // ===== 12. THỐNG KÊ KHO / VÙNG =====
+  if (has("kho nao") && has("nhieu vuot troi","nhieu vt","vt nhat")){
+    const rows = TINH_LIST.map(t=>({t, vt:NV.filter(n=>n.tinh===t&&n.vuotTroi).length})).sort((a,b)=>b.vt-a.vt);
+    return `Dạ, kho nhiều Vượt Trội nhất: ${rows[0].t} (${rows[0].vt} 🏆). Top 3: ${rows.slice(0,3).map(r=>`${r.t} ${r.vt}`).join(" · ")} ạ.`;
+  }
+  if (has("bao nhieu nhan vien","tong so nhan vien","co bao nhieu nv","tong nv")){
+    if (user.type==="ql") return `Dạ, toàn khu vực có ${NV.length} NV bảo hành tại nhà (12 kho, 2 vùng), trong đó ${NV.filter(n=>n.vuotTroi).length} đạt Vượt Trội 🏆; và ${TN.length} trưởng nhóm ạ.`;
+    const mem=NV.filter(n=>n.tinh===(d.tinh||"")); if (mem.length) return `Dạ, kho ${d.tinh} có ${mem.length} NV bảo hành tại nhà, ${mem.filter(n=>n.vuotTroi).length} đạt Vượt Trội 🏆 ạ.`;
+  }
+  if (has("diem trung binh","trung binh kho","tb kho")){
+    const t = tinhQ[0]||d.tinh;
+    if (t){ const mem=NV.filter(n=>n.tinh===t); if (mem.length) return `Dạ, điểm trung bình NV kho ${t}: ${Math.round(mem.reduce((s,x)=>s+x.diem,0)/mem.length*10)/10}đ (${mem.length} NV) ạ.`; }
+  }
+  // ===== 10. TỔNG QUAN HỒ SƠ =====
+  if ((user.type==="nv"||user.type==="tn") && has("tom tat","tong ket","danh gia chung","diem manh","diem yeu","manh yeu")){
+    const CR = user.type==="nv"? CRIT_NV: CRIT_TN;
+    const ks = Object.keys(CR).sort((a,b)=>(d.diemLK?.[b]??0)-(d.diemLK?.[a]??0));
+    const best=ks[0], worst=ks[ks.length-1];
+    return `Dạ, tóm tắt của anh/chị: ${diemOf(d)}đ lũy kế, hạng ${d.xepHang??"—"}${user.type==="nv"?"/"+nvOfKho(d.kho).length+" kho "+d.tinh:" "+d.vung}${d.vuotTroi?" — ĐẠT VƯỢT TRỘI 🏆":""}.\n• Mạnh nhất: ${ACTIONS[best]?.icon||""} ${CR[best]} (${d.diemLK?.[best]??0}đ)\n• Cần cải thiện: ${ACTIONS[worst]?.icon||""} ${CR[worst]} (${d.diemLK?.[worst]??0}đ) — gõ "cải thiện ${norm(CR[worst]).split(" ").slice(0,2).join(" ")}" để nhận hành động ạ.`;
+  }
+  // ===== 5. CHỈ SỐ CHI TIẾT THEO THÁNG =====
+  if (user.type==="nv" && has("tiep can") && mAll.length===1){
+    const mn=mAll[0]; const v = mn==="T7"? (T7X[d.ma]?T7X[d.ma][0]:null) : (DET[d.ma]&&DET[d.ma][mn]? DET[d.ma][mn][0]: null);
+    return v!=null? `Dạ, tỷ lệ tiếp cận ${mn} của anh/chị: ${(v*100).toFixed(1)}%${mn==="T7"?" (tạm tính giữa tháng)":""} ạ.` : `Dạ, ${mn} anh/chị chưa có số tiếp cận trong app ạ.`;
+  }
+  if ((has("doanh thu")||hasW("scdv")) && !has("cai thien","lam sao")){
+    if (user.type==="nv"){
+      if (mAll.length===1) return `Dạ, doanh thu SCDV ${mAll[0]} của anh/chị: ${money(scOf(d.ma,mAll[0]))}${mAll[0]==="T7"?" (tạm tính)":""} ạ.`;
+      const tot=MONTHS7.reduce((s,m)=>s+scOf(d.ma,m),0);
+      return `Dạ, doanh thu SCDV của anh/chị: ${MONTHS7.map(m=>`${m}: ${money(scOf(d.ma,m))}`).join(" · ")} — tổng ${money(tot)} ạ.`;
+    }
+    if (user.type==="tn"||user.type==="kho"){
+      if (mAll.length===1) return `Dạ, doanh thu SCDV kho ${d.tinh} ${mAll[0]}: ${money(scKho(d.kho,mAll[0]))}${mAll[0]==="T7"?" (tạm tính)":""} ạ.`;
+      const tot=MONTHS7.reduce((s,m)=>s+scKho(d.kho,m),0);
+      return `Dạ, doanh thu SCDV kho ${d.tinh}: ${MONTHS7.map(m=>`${m}: ${money(scKho(d.kho,m))}`).join(" · ")} — tổng ${money(tot)} ạ.`;
+    }
+    if (user.type==="ql" && tinhQ.length===1){
+      const kho=(NV.find(n=>n.tinh===tinhQ[0])||{}).kho;
+      if (kho) return `Dạ, doanh thu SCDV kho ${tinhQ[0]}: ${MONTHS7.map(m=>`${m}: ${money(scKho(kho,m))}`).join(" · ")} ạ.`;
+    }
+  }
+  // ===== 11. ĐỘI NHÓM / TRƯỞNG NHÓM =====
+  if (has("truong nhom") && tinhQ.length===1 && has("la ai","ai la","ten gi")){
+    const t=TN.find(x=>x.tinh===tinhQ[0]);
+    return t? `Dạ, trưởng nhóm kho ${tinhQ[0]} là ${t.ten} (${t.ma}) — ${t.tongDiem}đ, hạng ${t.xepHang} ${t.vung} ${medal(t.xepHang)??""} ạ.` : `Dạ, em chưa có thông tin TN kho ${tinhQ[0]} ạ.`;
+  }
+  if (user.type==="tn" && has("doi toi","doi cua toi","nhom toi","doi minh") ){
+    const mem=nvOfKho(d.kho);
+    return `Dạ, đội kho ${d.tinh}: ${mem.length} NV, ${mem.filter(n=>n.vuotTroi).length} 🏆 Vượt Trội. Cao nhất: ${mem[0]?.ten} (${mem[0]?.diem}đ); cần kèm cặp: ${mem[mem.length-1]?.ten} (${mem[mem.length-1]?.diem}đ). Gõ "ai có khiếu nại" hoặc "top 3" để xem thêm ạ.`;
+  }
+  // ===== T7 TÌNH HÌNH (TN/QL) =====
+  if (hasW("t7","thang 7") && (user.type==="tn"||user.type==="ql") && has("the nao","ra sao","ket qua","tinh hinh")){
+    const src = user.type==="ql"? TN7V : TN7[kcode(d.kho)];
+    if (src){
+      const line = Object.keys(CRIT_TN).map(k=>`${ACTIONS[k]?.icon||""} ${CRIT_TN[k]}: KQ ${src[k].kq}/KPI ${src[k].kpi} ${src[k].ok?"✅":"❌"}`).join("\n• ");
+      return `Dạ, Tháng 7 (tạm tính, chốt 15/07)${user.type==="ql"?" TOÀN VÙNG":" kho "+d.tinh}:\n• ${line}\nSố chốt chính thức cập nhật đầu Tháng 8 ạ.`;
+    }
+  }
+  return null;
+}
 
 // ================= GIAO DIỆN (vanilla JS) =================
 const S = { tab:"tra", user:null, seg:"TN", msgs:[], err:"" };
@@ -617,6 +783,23 @@ function managerHTML(){
 
 const avgArr=(a)=>a.reduce((s,x)=>s+x,0)/a.length;
 function fmtKQ(v){ return v>=1000? Math.round(v).toLocaleString('vi-VN') : (Math.round(v*100)/100); }
+// ===== T7 THEO KHO — 5 tiêu chí TN, số chốt 15/07 từ File Họp Tháng 7 (cập nhật 15-07) =====
+const MONTHS7 = [...MONTHS,"T7"];
+const TN7 = {
+ "VTB_HTI":{"5sao":{kq:2.98,kpi:3.52,ok:false},dungHen:{kq:98.0,kpi:98.5,ok:false},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:95,kpi:100,ok:false}},
+ "VTB_QBI":{"5sao":{kq:2.91,kpi:3.52,ok:false},dungHen:{kq:99.5,kpi:98.5,ok:true},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:106,kpi:100,ok:true}},
+ "VTB_QTR":{"5sao":{kq:2.85,kpi:3.52,ok:false},dungHen:{kq:98.2,kpi:98.5,ok:false},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:83,kpi:100,ok:false}},
+ "VTB_HUE":{"5sao":{kq:4.13,kpi:3.52,ok:true},dungHen:{kq:99.7,kpi:98.5,ok:true},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:117,kpi:100,ok:true}},
+ "VTB_DNA":{"5sao":{kq:3.69,kpi:3.52,ok:true},dungHen:{kq:98.0,kpi:98.5,ok:false},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:101,kpi:100,ok:true}},
+ "VTB_QNA":{"5sao":{kq:4.58,kpi:3.52,ok:true},dungHen:{kq:98.5,kpi:98.5,ok:true},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:77,kpi:100,ok:false}},
+ "VTB_QNG":{"5sao":{kq:3.40,kpi:3.52,ok:false},dungHen:{kq:100.0,kpi:98.5,ok:true},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:88,kpi:100,ok:false}},
+ "VDH_BDI":{"5sao":{kq:3.17,kpi:3.52,ok:false},dungHen:{kq:99.5,kpi:98.5,ok:true},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:41,kpi:100,ok:false}},
+ "VDH_PYE":{"5sao":{kq:3.37,kpi:3.52,ok:false},dungHen:{kq:99.5,kpi:98.5,ok:true},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:161,kpi:100,ok:true}},
+ "VDH_KHH":{"5sao":{kq:4.68,kpi:3.52,ok:true},dungHen:{kq:98.8,kpi:98.5,ok:true},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:139,kpi:100,ok:true}},
+ "VDH_BTH":{"5sao":{kq:3.30,kpi:3.52,ok:false},dungHen:{kq:99.0,kpi:98.5,ok:true},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:54,kpi:100,ok:false}},
+ "VDH_BRV":{"5sao":{kq:3.51,kpi:3.52,ok:false},dungHen:{kq:98.8,kpi:98.5,ok:true},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:142,kpi:100,ok:true}}};
+const TN7V = {"5sao":{kq:3.55,kpi:3.52,ok:true},dungHen:{kq:98.9,kpi:98.5,ok:true},tayNghe:{kq:100,kpi:99,ok:true},xldd:{kq:100,kpi:100,ok:true},scdv:{kq:103,kpi:100,ok:true}};
+const tn7Of = (t)=>{ if(!t||!t.kho) return null; const m=String(t.kho).match(/(VTB|VDH)_[A-Z]{3}/); return m?TN7[m[0]]:null; };
 function regionCrit(m,k){
   const ts = TINH_LIST.map(t=>TN.find(x=>x.tinh===t)).filter(Boolean);
   const cells = ts.map(t=>(t.thang&&t.thang[m]&&t.thang[m].tc)?t.thang[m].tc[k]:null).filter(x=>x!=null);
@@ -628,8 +811,8 @@ function regionCrit(m,k){
 }
 function regionRow(){
   const CK=Object.keys(CRIT_TN);
-  return `<tr class="mm-tong"><td class="mm-tinh"><b>TỔNG VÙNG</b><br><small>VTB + VDH</small></td>${MONTHS.map(m=>{
-    const rs=CK.map(k=>regionCrit(m,k)); const nPass=rs.filter(r=>r.ok).length;
+  return `<tr class="mm-tong"><td class="mm-tinh"><b>TỔNG VÙNG</b><br><small>VTB + VDH</small></td>${MONTHS7.map(m=>{
+    const rs=CK.map(k=> m==="T7"? {ok:TN7V[k].ok,kq:TN7V[k].kq,kpi:TN7V[k].kpi,tam:false} : regionCrit(m,k)); const nPass=rs.filter(r=>r.ok).length;
     const dots=CK.map((k,i)=>{ const r=rs[i]; const tip=r.tam?`${CRIT_TN[k]}: tạm đạt (chờ KPI vùng)`:`${CRIT_TN[k]}: KQ ${fmtKQ(r.kq)} / KPI ${fmtKQ(r.kpi)} — ${r.ok?"đạt":"chưa đạt"}`; return `<span class="dot-x ${r.ok?"dot-p":"dot-f"}" title="${esc(tip)}"></span>`; }).join("");
     return `<td class="mm-cell"><div class="dots">${dots}</div><span class="mm-n">${nPass}/5</span></td>`;
   }).join("")}</tr>`;
@@ -641,6 +824,12 @@ function tinhMonthMatrix(){
     return {tinh, vung: (NV.find(n=>n.tinh===tinh)||{}).vung, t};
   }).sort((a,b)=>((b.t?b.t.tongDiem:0)-(a.t?a.t.tongDiem:0)));
   const dotCell = (t,m)=>{
+    if(m==="T7"){ const d7=tn7Of(t);
+      if(!d7) return `<td class="mm-cell"><div class="dots">${CK.map(()=>`<span class="dot-x dot-none"></span>`).join("")}</div></td>`;
+      const nP=CK.filter(k=>d7[k]&&d7[k].ok).length;
+      const dots7=CK.map(k=>{ const c=d7[k]; const ok=c&&c.ok;
+        return `<span class="dot-x ${ok?"dot-p":"dot-f"}" title="${esc(CRIT_TN[k])} T7 (chốt 15/07): KQ ${c?c.kq:"—"} / KPI ${c?c.kpi:"—"} — ${ok?"đạt":"chưa đạt"}"></span>`; }).join("");
+      return `<td class="mm-cell"><div class="dots">${dots7}</div><span class="mm-n">${nP}/5</span></td>`; }
     if(!t||!t.thang||!t.thang[m]) return `<td class="mm-cell"><div class="dots">${CK.map(()=>`<span class="dot-x dot-none"></span>`).join("")}</div></td>`;
     const tc = t.thang[m].tc||{};
     const nPass = CK.filter(k=>tc[k]&&tc[k].d>0).length;
@@ -649,10 +838,10 @@ function tinhMonthMatrix(){
   };
   const body = rows.map((r,i)=>`<tr class="${i%2?"":"alt"}" data-action="open-kho" data-kho="${r.t?r.t.kho:""}" style="cursor:pointer">
     <td class="mm-tinh"><b>${esc(r.tinh)}</b><br><small>${r.vung||""}</small></td>
-    ${MONTHS.map(m=>dotCell(r.t,m)).join("")}</tr>`).join("");
+    ${MONTHS7.map(m=>dotCell(r.t,m)).join("")}</tr>`).join("");
   return `<div class="card p"><div class="stitle">TÌNH TRẠNG 5 TIÊU CHÍ THEO THÁNG — 12 TỈNH</div>
-  <div class="mm-legend">Mỗi ô có 5 chấm = 5 tiêu chí (⭐Phục vụ 5 Sao · ⏰Đúng hẹn · 🔧Tay nghề · 🎯XLDĐ · 💰SCDV). <span class="dot-x dot-p"></span> đạt · <span class="dot-x dot-f"></span> chưa đạt. Bấm 1 tỉnh để xem chi tiết. <b>Dòng TỔNG VÙNG</b>: KQ gộp cả vùng so KPI (5 Sao tính trung bình, SCDV tính tổng); tiêu chí chưa có KPI vùng để đạt tạm — bấm giữ ô xem số.</div>
-  <div class="mgwrap"><table class="mm"><thead><tr><th class="mm-h-tinh">KHO TỈNH</th>${MONTHS.map(m=>`<th>${m}</th>`).join("")}</tr></thead>
+  <div class="mm-legend">Mỗi ô có 5 chấm = 5 tiêu chí (⭐Phục vụ 5 Sao · ⏰Đúng hẹn · 🔧Tay nghề · 🎯XLDĐ · 💰SCDV). <span class="dot-x dot-p"></span> đạt · <span class="dot-x dot-f"></span> chưa đạt. Bấm 1 tỉnh để xem chi tiết. <b>Dòng TỔNG VÙNG</b>: KQ gộp cả vùng so KPI (5 Sao tính trung bình, SCDV tính tổng); tiêu chí chưa có KPI vùng để đạt tạm — bấm giữ ô xem số. <b>Cột T7</b>: tạm tính theo số chốt 15/07 (File Họp Tháng 7), SCDV theo % dự kiến cuối tháng.</div>
+  <div class="mgwrap"><table class="mm"><thead><tr><th class="mm-h-tinh">KHO TỈNH</th>${MONTHS7.map(m=>`<th>${m==="T7"?"T7*":m}</th>`).join("")}</tr></thead>
   <tbody>${regionRow()}${body}</tbody></table></div></div>`;
 }
 
