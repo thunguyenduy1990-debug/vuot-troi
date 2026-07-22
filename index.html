@@ -808,10 +808,13 @@ function profileHTML(){
 
 function managerHTML(){
   const vt=NV.filter(n=>n.vuotTroi).length;
+  // Bảng chi tiết 120 NV rất nặng (≈5000 ô + sticky) → mặc định ẨN, chỉ render khi bấm nút (tránh treo máy iOS)
+  const allNV = S.showAllNV? detailTableAll()
+    : '<div class="card p"><div class="stitle">CHI TIẾT TỪNG NHÂN VIÊN</div><div class="mm-legend">Bảng lớn ('+NV.length+' NV × 7 tháng). Bấm nút để tải — tránh nặng máy khi không cần.</div><button class="btn-y" data-action="toggle-allnv" style="width:100%;padding:11px;font-weight:800">📋 Hiện bảng chi tiết '+NV.length+' nhân viên</button></div>';
   return `<div class="card p" style="border-top-color:${C.gold}">
     <div class="prow">${av(MANAGER.ten,1,46)}<div class="pinfo"><h2>${esc(MANAGER.ten)}</h2><div class="sub">Quản lý Vùng Trung Bộ + Duyên Hải · Mã ${MANAGER.ma}</div></div></div>
     ${statCards([[vt+"/"+NV.length,"NV Vượt Trội 🏆"],[String(TN.length),"Trưởng nhóm"],["12","Kho tỉnh"],[String(Math.round(NV.reduce((s,n)=>s+n.diem,0)/NV.length*10)/10),"Điểm TB NV"]])}
-  </div>${chatBox()}${tinhMonthMatrix()}${regionTable(true)}${detailTableAll()}`;
+  </div>${chatBox()}${tinhMonthMatrix()}${regionTable(true)}${allNV}`;
 }
 
 const avgArr=(a)=>a.reduce((s,x)=>s+x,0)/a.length;
@@ -1009,6 +1012,7 @@ document.addEventListener("click",(e)=>{
   if(a==="open-nv"){ const n=NV.find(x=>x.ma===b.dataset.ma); if(n){S.user={type:"nv",data:n}; S.tab="tra"; S.msgs=[]; render(); window.scrollTo(0,0);} }
   if(a==="open-tn"){ const t=TN.find(x=>x.ma===b.dataset.ma); if(t){S.user={type:"tn",data:t}; S.tab="tra"; S.msgs=[]; render(); window.scrollTo(0,0);} }
   if(a==="open-kho"){ const kh=b.dataset.kho; const m=NV.find(x=>x.kho===kh); if(m){S.user={type:"kho",data:{kho:m.kho,tinh:m.tinh,vung:m.vung}}; S.tab="tra"; S.msgs=[]; render(); window.scrollTo(0,0);} }
+  if(a==="toggle-allnv"){ S.showAllNV=!S.showAllNV; const y=window.scrollY; render(); window.scrollTo(0,y); }
   if(a==="exp-cell"){ const t=b.dataset.tinh, m=b.dataset.m;
     S.expV = (S.expV && S.expV.tinh===t && S.expV.m===m)? null : {tinh:t, m};
     const y=window.scrollY; render(); window.scrollTo(0,y); }
