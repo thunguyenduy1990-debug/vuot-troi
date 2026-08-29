@@ -713,7 +713,7 @@ function extraAnswer(q, user){
   if (tinhQ.length===1 && has("luy ke","tong diem","tong ket","ca ky","7 thang")){
     const t=TN.find(x=>x.tinh===tinhQ[0]);
     if (t){ const v=vTotal(t);
-      return `Dạ, TỔNG ${VMONTHS_CUM[0]}–${VMONTHS_CUM[VMONTHS_CUM.length-1]} kho ${tinhQ[0]}: ${v.ds} điểm.\n`+v.per.map(([k,lb,d,p,nm])=>`• ${lb}: ${d}đ — đạt ${p}/${nm} tháng`).join("\n")+`\n(Nguồn: Google Sheet VTB - DH DATA 2026, cập nhật 28/08/2026; tháng chưa có kết quả tính Không đạt.)`; }
+      return `Dạ, TỔNG ${VMONTHS_CUM[0]}–${VMONTHS_CUM[VMONTHS_CUM.length-1]} kho ${tinhQ[0]}: ${v.ds} điểm.\n`+v.per.map(([k,lb,d,p,nm])=>`• ${lb}: ${d}đ — đạt ${p}/${nm} tháng`).join("\n")+`\n(Nguồn: Google Sheet VTB - DH DATA 2026, cập nhật 29/08/2026; tháng chưa có kết quả tính Không đạt.)`; }
   }
   // ===== 11. ĐỘI NHÓM / TRƯỞNG NHÓM =====
   if (has("truong nhom") && tinhQ.length===1 && has("la ai","ai la","ten gi")){
@@ -733,7 +733,7 @@ function extraAnswer(q, user){
       if (vm){
         const line = vm.rows.map(([k,lb,pt,cc])=> cc? `${lb}: KQ ${fmtCV(k,mq,cc.kq)}/KPI ${fmtCV(k,mq,cc.kpi)} ${cc.ok?"✅":"❌"}` : `${lb}: — chưa có`).join("\n• ");
         const note = (mq==="T8")? " (data tới 27/08)" : "";
-        return `Dạ, Tháng ${mq.slice(1)}${note}${user.type==="ql"?" TOÀN VÙNG":" kho "+d.tinh} — ${vm.n}/6 tiêu chí đạt, ${vm.ds}đ:\n• ${line}\n(Nguồn: Google Sheet VTB - DH DATA 2026, cập nhật 28/08/2026; tháng chưa có kết quả tính Không đạt.)`;
+        return `Dạ, Tháng ${mq.slice(1)}${note}${user.type==="ql"?" TOÀN VÙNG":" kho "+d.tinh} — ${vm.n}/6 tiêu chí đạt, ${vm.ds}đ:\n• ${line}\n(Nguồn: Google Sheet VTB - DH DATA 2026, cập nhật 29/08/2026; tháng chưa có kết quả tính Không đạt.)`;
       }
     }
   }
@@ -969,7 +969,7 @@ function tinhMonthMatrix(){
     return tr+ex;
   }).join("");
   return `<div class="card p"><div class="stitle">KẾT QUẢ 7 TIÊU CHÍ THEO THÁNG — 12 TỈNH</div>
-  <div class="mm-legend">6 tiêu chí: ⭐5 Sao (4đ) · ⏰Đúng hẹn (2đ) · 🔧Tay nghề (2đ) · 🎯XLDĐ1L (2đ) · 🧰Thợ Chuẩn 5S (2đ) · 💰SCDV (2đ; <b>từ T7 = 4đ</b>). Ô hiện <b>số tiêu chí đạt / điểm tháng</b> — <b>BẤM Ô</b> để xem chi tiết KPI / Kết quả / Đánh giá / Điểm từng tiêu chí. Cột <b>TỔNG</b>: tổng điểm lũy kế + số tháng đạt từng tiêu chí. Bấm tên tỉnh để mở trang kho. Nguồn: Google Sheet "VTB - DH DATA 2026" (cập nhật 28/08/2026). <i>Tháng nào tiêu chí chưa có kết quả → tính Không đạt (0đ), bổ sung sau.</i> <b>Tháng 8 lấy data tới 27/08/2026</b> và đã cộng đủ vào cột TỔNG (TỔNG = ${VMONTHS_CUM[0]}–${VMONTHS_CUM[VMONTHS_CUM.length-1]}).</div>
+  <div class="mm-legend">6 tiêu chí: ⭐5 Sao (4đ) · ⏰Đúng hẹn (2đ) · 🔧Tay nghề (2đ) · 🎯XLDĐ1L (2đ) · 🧰Thợ Chuẩn 5S (2đ) · 💰SCDV (2đ; <b>từ T7 = 4đ</b>). Ô hiện <b>số tiêu chí đạt / điểm tháng</b> — <b>BẤM Ô</b> để xem chi tiết KPI / Kết quả / Đánh giá / Điểm từng tiêu chí. Cột <b>TỔNG</b>: tổng điểm lũy kế + số tháng đạt từng tiêu chí. Bấm tên tỉnh để mở trang kho. Nguồn: Google Sheet "VTB - DH DATA 2026" (cập nhật 29/08/2026). <i>Tháng nào tiêu chí chưa có kết quả → tính Không đạt (0đ), bổ sung sau.</i> <b>Tháng 8 lấy data tới 27/08/2026</b> và đã cộng đủ vào cột TỔNG (TỔNG = ${VMONTHS_CUM[0]}–${VMONTHS_CUM[VMONTHS_CUM.length-1]}).</div>
   <div class="mgwrap"><table class="mm"><thead><tr><th class="mm-h-tinh">KHO TỈNH</th><th class="c-tot">${VLABEL.replace("TỔNG ","TỔNG ")}</th>${VMONTHS.map(m=>`<th${isVPartial(m)?' class="mm-part"':""}>${m}</th>`).join("")}</tr></thead>
   <tbody>${regionRow()}${(S.expV&&S.expV.tinh==="__VUNG__")?`<tr class="exprow"><td colspan="${2+VMONTHS.length}">${vDetailHTMLR(S.expV.m)}</td></tr>`:""}${body}</tbody></table></div></div>`;
 }
@@ -1047,7 +1047,7 @@ function render(){
   if(S.tab==="tc") main = rulesHTML();
   $("#app").innerHTML = `<header><div class="hwrap">
     <div class="hbadges"><span class="tag">BHSC CE</span><span class="hsub">VÙNG TRUNG BỘ + DUYÊN HẢI · 14 KHO</span></div>
-    <h1>🏆 ĐÁNH GIÁ VƯỢT TRỘI 2026</h1><div class="hsub2">Lũy kế 8 tháng đầu năm (T1–T8) · cập nhật 28/08/2026</div>
+    <h1>🏆 ĐÁNH GIÁ VƯỢT TRỘI 2026</h1><div class="hsub2">Lũy kế 8 tháng đầu năm (T1–T8) · cập nhật 29/08/2026</div>
     <nav>${tabs.map(([k,l])=>`<button class="tabb ${S.tab===k?"on":""}" data-action="tab" data-tab="${k}">${l}</button>`).join("")}</nav>
   </div></header><main>${main}</main>`;
   const cb=$("#chatb"); if(cb) cb.scrollTop=cb.scrollHeight;
